@@ -73,6 +73,31 @@ function strokePath(points, map, color, lineWidth, opacity = 1) {
   ctx.globalAlpha = 1;
 }
 
+// Like strokePath, but the last (1 - fadeStartFrac) of the curve fades to
+// transparent instead of ending in a hard cap. However carefully a curve's
+// length is chosen, *something* will still end up stopping mid-air or
+// slightly short of/past a boundary in some cases — fading the tail means
+// that end dissolves naturally instead of reading as a broken-off loose
+// end or a seam.
+function strokePathFading(points, map, color, lineWidth, opacity, fadeStartFrac = 0.8) {
+  const n = points.length;
+  if (n < 2) return;
+  const fadeStart = Math.floor(n * fadeStartFrac);
+  ctx.strokeStyle = color;
+  ctx.lineWidth = lineWidth;
+  for (let i = 1; i < n; i++) {
+    const a = map(points[i - 1]);
+    const b = map(points[i]);
+    const f = i <= fadeStart ? 1 : 1 - (i - fadeStart) / (n - 1 - fadeStart);
+    ctx.globalAlpha = opacity * f;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+}
+
 function fillPolygon(points, map, color, opacity = 1) {
   if (points.length < 3) return;
   ctx.beginPath();
@@ -209,22 +234,24 @@ function drawStability(progress, t) {
   clipCircle(leftX, cy, panelRadiusPx, () => {
     for (let i = 0; i < 8; i++) {
       const r0 = 0.35 + i * 0.22;
-      // A fixed t-range made every ring reach the boundary at wildly
-      // different points along its own curve — small r0 rings barely grow
-      // before running out of samples (undershooting, ending mid-air),
-      // while large r0 rings blow past the boundary almost immediately
-      // (overshooting, clipped to a stub). Solving r0*e^(decay*t)=panelExtent
-      // for t gives each ring exactly enough time to reach the edge and
-      // stop there cleanly, so every arm is a fully-formed curve that
-      // actually touches the boundary.
-      const tMax = decay > 0.001
-        ? Math.min(14, Math.log(panelExtent / r0) / decay)
-        : spinPeriod;
+      // Chasing an exact stopping point for every ring (reach the boundary
+      // precisely, or close a loop exactly) turned out to be a losing
+      // game — there's always some combination of r0/decay where a ring
+      // neither reaches the boundary nor closes cleanly within a sane
+      // sample budget, leaving a hard-capped end floating in open space.
+      // So: cap generously, and fade the tail instead of hard-stopping it
+      // (see strokePathFading) — wherever a ring actually ends up
+      // stopping, it dissolves instead of showing a loose end.
+      const tMax = decay > 0 ? Math.min(16, Math.log(panelExtent * 1.4 / r0) / decay) : spinPeriod;
       const pts = [];
       for (let k = 0; k <= 160; k++) {
         pts.push(spiralFlow(decay, omega, r0, 0, (k / 160) * tMax));
       }
-      strokePath(pts, mapL, palette.accent, 1.3, 0.55);
+      if (decay > 0) {
+        strokePathFading(pts, mapL, palette.accent, 1.3, 0.55, 0.78);
+      } else {
+        strokePath(pts, mapL, palette.accent, 1.3, 0.55); // decay=0: a closed circle, no tail to hide
+      }
     }
     dot({ x: 0, y: 0 }, mapL, 3, palette.accent2, 0.9);
 
