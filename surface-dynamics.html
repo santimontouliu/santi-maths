@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Surface Dynamics — Geodesic Flow on Hyperbolic Surfaces</title>
+  <meta name="description" content="A scrollytelling introduction to hyperbolic surfaces: the Poincaré disk, building a genus-2 surface from an octagon, and the geodesic flow that drives its dynamics." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="site-nav" aria-label="Entries">
+    <a href="index.html">Topological Data Analysis</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="surface-dynamics.html" class="is-current">Surface Dynamics</a>
+  </nav>
+
+  <button id="theme-toggle" aria-label="Toggle light and dark mode" title="Toggle theme">
+    <svg id="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"></circle>
+      <g stroke-linecap="round">
+        <line x1="12" y1="1.5" x2="12" y2="4"></line>
+        <line x1="12" y1="20" x2="12" y2="22.5"></line>
+        <line x1="1.5" y1="12" x2="4" y2="12"></line>
+        <line x1="20" y1="12" x2="22.5" y2="12"></line>
+        <line x1="4.6" y1="4.6" x2="6.3" y2="6.3"></line>
+        <line x1="17.7" y1="17.7" x2="19.4" y2="19.4"></line>
+        <line x1="4.6" y1="19.4" x2="6.3" y2="17.7"></line>
+        <line x1="17.7" y1="6.3" x2="19.4" y2="4.6"></line>
+      </g>
+    </svg>
+    <svg id="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path>
+    </svg>
+  </button>
+
+  <main class="layout">
+
+    <!-- Right / background column: sticky 2D canvas, the Poincaré disk -->
+    <div class="scene-column">
+      <div class="scene-sticky">
+        <canvas id="scene-canvas"></canvas>
+        <div class="scene-caption">
+          <span id="scene-stage-label">01 — Constant Curvature</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left / foreground column: scrolling article -->
+    <div class="text-column">
+      <article>
+
+        <header class="hero">
+          <p class="eyebrow">Surface Dynamics</p>
+          <h1>Geodesic Flow<br>on Hyperbolic Surfaces</h1>
+          <p class="hero-sub">
+            Fundamentals for a semester spent with Viveka Erlandsson on structures on hyperbolic surfaces —
+            how a single negative-curvature metric turns straight lines into a dense, chaotic flow.
+          </p>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="story-section" id="sd-section-1" data-index="0">
+          <p class="section-kicker">01</p>
+          <h2>Why Curvature Changes Everything</h2>
+          <p>
+            A closed surface has a topological invariant, the Euler characteristic
+            <code class="math">χ</code>, and Gauss–Bonnet ties it directly to curvature:
+            the total curvature of any metric on the surface must equal <code class="math">2πχ</code>.
+          </p>
+          <p>
+            For a genus-<code class="math">g</code> surface, <code class="math">χ = 2 − 2g</code>. Once
+            <code class="math">g ≥ 2</code>, that number is negative — so the surface cannot be flat, and
+            cannot be positively curved. It <em>must</em> carry a metric of constant curvature
+            <code class="math">−1</code>: a hyperbolic structure.
+          </p>
+          <p>
+            Negative curvature isn't just a sign flip. It means triangles have angle sums below
+            <code class="math">π</code>, disks of radius <code class="math">r</code> have circumference
+            growing like <code class="math">eʳ</code> rather than <code class="math">r</code>, and there is,
+            in a precise sense, <em>exponentially more room</em> the farther out you go. That extra room is
+            exactly what makes the dynamics on these surfaces so rich.
+          </p>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="story-section" id="sd-section-2" data-index="1">
+          <p class="section-kicker">02</p>
+          <h2>The Poincaré Disk: Straight Lines That Curve</h2>
+          <p>
+            To work with this geometry concretely, model it on the open unit disk. The
+            <strong>Poincaré disk model</strong> assigns the metric
+            <code class="math">ds² = 4|dz|² / (1 − |z|²)²</code> to the disk — distances stretch out
+            faster and faster as <code class="math">|z| → 1</code>, so the boundary circle sits infinitely
+            far away. It is never actually reached; it's the surface's <em>ideal boundary</em>.
+          </p>
+          <p>
+            In this model, geodesics — the "straight lines" — are exactly the circular arcs that meet the
+            boundary circle at a right angle (diameters are the special case of a circle with infinite
+            radius). Every isometry of the disk is a Möbius transformation, and the whole hyperbolic plane
+            is simply the universal cover shared by every hyperbolic surface.
+          </p>
+          <p>
+            The pencil of arcs beside this text are all geodesics through a single point — each one locally
+            straight, each one visibly bent, purely because we're looking at a curved space through a flat
+            picture.
+          </p>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="story-section" id="sd-section-3" data-index="2">
+          <p class="section-kicker">03</p>
+          <h2>A Surface From a Single Polygon</h2>
+          <p>
+            Every closed hyperbolic surface can be assembled by gluing the sides of a hyperbolic polygon.
+            The classic genus-2 picture: take a <strong>regular hyperbolic octagon</strong> whose interior
+            angle at each vertex is exactly <code class="math">π/4</code>, so that eight copies fit snugly
+            around every vertex with angles summing to <code class="math">2π</code>.
+          </p>
+          <p>
+            Glue each side to the side opposite it. All eight vertices collapse to a single point on the
+            resulting surface, the edges become four closed loops crossing at that point, and the interior
+            becomes a smooth genus-2 surface with curvature <code class="math">−1</code> everywhere.
+          </p>
+          <p>
+            The side-pairing maps generate a discrete group of isometries — a <strong>Fuchsian group</strong>
+            <code class="math">Γ</code> — and the surface is literally the quotient <code class="math">𝔻/Γ</code>.
+            Repeatedly reflecting the octagon through its own images tiles the whole disk, the same way a
+            single tile of wallpaper repeats to cover a wall — except here the tiles shrink as they
+            approach the boundary, an artifact of the disk model rather than the surface itself.
+          </p>
+        </section>
+
+        <!-- Section 4 -->
+        <section class="story-section" id="sd-section-4" data-index="3">
+          <p class="section-kicker">04</p>
+          <h2>Geodesic Flow: Where the Dynamics Live</h2>
+          <p>
+            Now set a point moving in a straight line on the surface. Lifted to the disk, that path is just
+            a single geodesic — but the surface keeps folding it back through the fundamental octagon over
+            and over, at a new angle each time it re-enters through a glued edge. This is the
+            <strong>geodesic flow</strong>: the basic dynamical system every hyperbolic surface carries for free.
+          </p>
+          <p>
+            Because curvature is negative, two geodesics that start out almost parallel separate at an
+            exponential rate — <em>sensitive dependence on initial conditions</em>, the signature of chaos.
+            The two rays beside this text begin a fraction of a degree apart and are already crossing
+            different octagons entirely.
+          </p>
+          <p>
+            Push this further and you get one of the field's classical theorems: on a compact hyperbolic
+            surface, the geodesic flow is <em>ergodic</em> — almost every trajectory winds around
+            densely and equidistributes across the whole surface. Making that statement precise, and asking
+            how it varies as the hyperbolic structure itself varies over Teichmüller space, is where this
+            semester's course picks up.
+          </p>
+        </section>
+
+        <footer class="page-footer">
+          <p>Built with vanilla JS &amp; a hand-rolled Poincaré disk toolkit — no rendering library.</p>
+        </footer>
+
+      </article>
+    </div>
+
+  </main>
+
+  <script type="module" src="surface-dynamics.js"></script>
+</body>
+</html>

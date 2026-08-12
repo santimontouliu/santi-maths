@@ -1,0 +1,430 @@
+/* ==========================================================================
+   Design tokens
+   Light mode is the default; dark mode overrides via [data-theme="dark"]
+   or an OS-level preference when no explicit choice has been made.
+   ========================================================================== */
+
+:root {
+  --bg: #faf9f6;
+  --bg-elevated: #ffffff;
+  --text-primary: #1f2430;
+  --text-secondary: #5a6072;
+  --text-tertiary: #8b8f9c;
+  --accent: #3a5a8c;
+  --accent-soft: rgba(58, 90, 140, 0.1);
+  --border: rgba(31, 36, 48, 0.1);
+  --code-bg: rgba(31, 36, 48, 0.05);
+
+  --scene-fog: #faf9f6;
+  --scene-point-a: #3a5a8c;
+  --scene-point-b: #c98a4b;
+  --scene-ambient: #ffffff;
+
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-serif: "Source Serif 4", Georgia, serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --max-text-width: 620px;
+  --transition-theme: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+}
+
+[data-theme="dark"] {
+  --bg: #14161c;
+  --bg-elevated: #1b1e26;
+  --text-primary: #e7e6e2;
+  --text-secondary: #a4a7b3;
+  --text-tertiary: #6c7080;
+  --accent: #8fb3e8;
+  --accent-soft: rgba(143, 179, 232, 0.12);
+  --border: rgba(231, 230, 226, 0.1);
+  --code-bg: rgba(231, 230, 226, 0.06);
+
+  --scene-fog: #14161c;
+  --scene-point-a: #8fb3e8;
+  --scene-point-b: #e0a868;
+  --scene-ambient: #2a2e3a;
+}
+
+/* Fall back to OS preference only when the user hasn't chosen explicitly.
+   main.js sets [data-theme] on <html> as soon as it determines a mode,
+   so this block only ever matters before JS runs / if JS is disabled. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161c;
+    --bg-elevated: #1b1e26;
+    --text-primary: #e7e6e2;
+    --text-secondary: #a4a7b3;
+    --text-tertiary: #6c7080;
+    --accent: #8fb3e8;
+    --accent-soft: rgba(143, 179, 232, 0.12);
+    --border: rgba(231, 230, 226, 0.1);
+    --code-bg: rgba(231, 230, 226, 0.06);
+
+    --scene-fog: #14161c;
+    --scene-point-a: #8fb3e8;
+    --scene-point-b: #e0a868;
+    --scene-ambient: #2a2e3a;
+  }
+}
+
+/* ==========================================================================
+   Reset & base
+   ========================================================================== */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 17px;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+  transition: var(--transition-theme);
+}
+
+h1, h2, h3 { font-family: var(--font-serif); font-weight: 600; line-height: 1.15; margin: 0 0 0.5em; }
+
+p { margin: 0 0 1.1em; color: var(--text-secondary); }
+
+strong { color: var(--text-primary); font-weight: 600; }
+
+em { color: var(--text-primary); font-style: italic; }
+
+a { color: var(--accent); }
+
+/* Mathematical variables: monospace, slightly accented */
+code.math {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--code-bg);
+  color: var(--accent);
+  padding: 0.1em 0.4em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   Site nav — switch between entries, fixed top-left
+   ========================================================================== */
+
+.site-nav {
+  position: fixed;
+  top: 28px;
+  left: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 0.55em;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.02em;
+}
+
+.site-nav a {
+  color: var(--text-tertiary);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.site-nav a:hover { color: var(--text-primary); }
+
+.site-nav a.is-current {
+  color: var(--accent);
+  pointer-events: none;
+}
+
+.site-nav-sep { color: var(--border); }
+
+@media (max-width: 900px) {
+  .site-nav {
+    top: 16px;
+    left: 16px;
+    font-size: 11px;
+  }
+}
+
+/* ==========================================================================
+   Theme toggle
+   ========================================================================== */
+
+#theme-toggle {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 100;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-theme), transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+#theme-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+#theme-toggle svg { fill: none; stroke: currentColor; stroke-width: 1.6; }
+#icon-sun circle { fill: currentColor; stroke: none; }
+#icon-moon path { fill: currentColor; }
+
+#icon-sun, #icon-moon {
+  position: absolute;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+/* Show sun icon (click to go dark) in light mode; moon icon in dark mode */
+:root:not([data-theme="dark"]) #icon-moon { opacity: 0; transform: scale(0.5) rotate(-40deg); }
+:root:not([data-theme="dark"]) #icon-sun  { opacity: 1; transform: scale(1) rotate(0); }
+[data-theme="dark"] #icon-sun  { opacity: 0; transform: scale(0.5) rotate(40deg); }
+[data-theme="dark"] #icon-moon { opacity: 1; transform: scale(1) rotate(0); }
+
+/* ==========================================================================
+   Layout — two columns on desktop
+   ========================================================================== */
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.scene-column {
+  position: relative;
+  order: 2;
+  border-left: 1px solid var(--border);
+}
+
+.scene-sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 40%, var(--accent-soft), transparent 60%),
+    var(--bg);
+  transition: var(--transition-theme);
+}
+
+#scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.scene-caption {
+  position: absolute;
+  left: 32px;
+  bottom: 32px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg-elevated);
+  transition: var(--transition-theme);
+}
+
+.text-column {
+  order: 1;
+  padding: 0 clamp(24px, 5vw, 64px);
+}
+
+article {
+  max-width: var(--max-text-width);
+  margin: 0 auto;
+  padding: 18vh 0 20vh;
+}
+
+/* ==========================================================================
+   Hero
+   ========================================================================== */
+
+.hero { margin-bottom: 28vh; }
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 1em;
+}
+
+.hero h1 {
+  font-size: clamp(2rem, 4vw, 2.75rem);
+  color: var(--text-primary);
+}
+
+.hero-sub {
+  font-size: 1.05rem;
+  margin-top: 0.75em;
+  max-width: 46ch;
+}
+
+/* ==========================================================================
+   Story sections
+   ========================================================================== */
+
+.story-section {
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 6vh 0;
+}
+
+.section-kicker {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-tertiary);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.6em;
+}
+
+.story-section h2 {
+  font-size: clamp(1.5rem, 3vw, 2rem);
+  color: var(--text-primary);
+  margin-bottom: 0.7em;
+}
+
+.betti-list {
+  list-style: none;
+  margin: 0 0 1.1em;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.betti-list li {
+  color: var(--text-secondary);
+  padding-left: 1.4em;
+  position: relative;
+}
+
+.betti-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+
+.equation {
+  font-size: 1.4rem;
+  text-align: center;
+  padding: 1.1em 0;
+  margin: 0.5em 0 1.3em;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.equation code.math {
+  background: none;
+  padding: 0;
+  white-space: normal;
+  font-size: 1em;
+}
+
+/* ==========================================================================
+   Call to action
+   ========================================================================== */
+
+.cta-wrap { margin-top: 2em; }
+
+.cta-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: 0.95rem;
+  color: var(--bg);
+  background: var(--text-primary);
+  padding: 0.9em 1.5em;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.3s ease, color 0.3s ease;
+}
+
+.cta-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+}
+
+.cta-button svg { transition: transform 0.2s ease; }
+.cta-button:hover svg { transform: translateX(3px); }
+
+/* ==========================================================================
+   Footer
+   ========================================================================== */
+
+.page-footer {
+  margin-top: 10vh;
+  padding-top: 2em;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+  color: var(--text-tertiary);
+}
+
+/* ==========================================================================
+   Responsive — mobile: canvas fixed at top, text scrolls over it
+   ========================================================================== */
+
+@media (max-width: 900px) {
+  .layout {
+    display: block;
+  }
+
+  .scene-column {
+    order: 1;
+    border-left: none;
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+  }
+
+  .scene-sticky {
+    position: fixed;
+    height: 100vh;
+  }
+
+  .text-column {
+    order: 2;
+    padding: 0 20px;
+    margin-top: 60vh;
+    background: var(--bg);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -20px 40px rgba(0, 0, 0, 0.08);
+    position: relative;
+  }
+
+  article { padding: 8vh 0 16vh; }
+
+  .hero { margin-bottom: 12vh; }
+
+  .story-section { min-height: auto; padding: 8vh 0; }
+
+  .scene-caption { left: 20px; bottom: 20px; }
+}

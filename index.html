@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Persistent Homology — A Visual Introduction to Topological Data Analysis</title>
+  <meta name="description" content="A scrollytelling introduction to Topological Data Analysis: simplicial complexes, Betti numbers, and persistent homology." />
+
+  <!-- Typography: Inter for body text, JetBrains Mono for mathematical variables/notation -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Site nav: switch between entries. Current entry is marked directly
+       via the .is-current class rather than computed, since each page is static. -->
+  <nav class="site-nav" aria-label="Entries">
+    <a href="index.html" class="is-current">Topological Data Analysis</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="surface-dynamics.html">Surface Dynamics</a>
+  </nav>
+
+  <!-- Theme toggle: fixed top-right, cycles light/dark. Defaults to OS preference via CSS + main.js check. -->
+  <button id="theme-toggle" aria-label="Toggle light and dark mode" title="Toggle theme">
+    <svg id="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"></circle>
+      <g stroke-linecap="round">
+        <line x1="12" y1="1.5" x2="12" y2="4"></line>
+        <line x1="12" y1="20" x2="12" y2="22.5"></line>
+        <line x1="1.5" y1="12" x2="4" y2="12"></line>
+        <line x1="20" y1="12" x2="22.5" y2="12"></line>
+        <line x1="4.6" y1="4.6" x2="6.3" y2="6.3"></line>
+        <line x1="17.7" y1="17.7" x2="19.4" y2="19.4"></line>
+        <line x1="4.6" y1="19.4" x2="6.3" y2="17.7"></line>
+        <line x1="17.7" y1="6.3" x2="19.4" y2="4.6"></line>
+      </g>
+    </svg>
+    <svg id="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path>
+    </svg>
+  </button>
+
+  <main class="layout">
+
+    <!-- Right / background column: sticky Three.js canvas -->
+    <div class="scene-column">
+      <div class="scene-sticky">
+        <canvas id="scene-canvas"></canvas>
+        <!-- Small caption showing which topological stage is active; updated by main.js -->
+        <div class="scene-caption">
+          <span id="scene-stage-label">01 — Point Cloud</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Left / foreground column: scrolling article -->
+    <div class="text-column">
+      <article>
+
+        <header class="hero">
+          <p class="eyebrow">Topological Data Analysis</p>
+          <h1>Persistent Homology,<br>from Point Cloud to Shape</h1>
+          <p class="hero-sub">A short, visual walk through how topology finds structure that geometry alone cannot see.</p>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="story-section" id="section-1" data-index="0">
+          <p class="section-kicker">01</p>
+          <h2>The Messy Reality of Data</h2>
+          <p>
+            Real datasets rarely arrive as clean equations. A sensor array, a genomic sample, a manifold of
+            images — each is a cloud of points sitting in some high-dimensional space, distorted by noise,
+            missing values, and measurement error.
+          </p>
+          <p>
+            Classical geometry asks <em>where</em> things are — exact distances, coordinates, curvature.
+            <strong>Topology</strong> asks a coarser but more durable question: <em>what shape does this
+            data have</em>, regardless of how it's stretched, bent, or slightly perturbed? A coffee cup and
+            a donut are the same to a topologist; a circle squashed into an ellipse is still a loop.
+          </p>
+          <p>
+            This resilience to noise is exactly what makes topology a powerful lens for data that was never
+            going to be clean in the first place.
+          </p>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="story-section" id="section-2" data-index="1">
+          <p class="section-kicker">02</p>
+          <h2>The Epsilon Proximity</h2>
+          <p>
+            To recover shape from a discrete set of points, we need a rule for when two points count as
+            "connected." The simplest idea: grow a ball of radius <code class="math">ε</code> around every
+            point, and connect two points as soon as their balls touch.
+          </p>
+          <p>
+            At <code class="math">ε = 0</code>, every point is isolated — just dust. As <code class="math">ε</code>
+            increases, points begin to merge into clusters, then those clusters merge into larger structures,
+            and loops and cavities start to appear where the data thins out.
+          </p>
+          <p>
+            The entire story of persistent homology is really the story of watching this single parameter,
+            <code class="math">ε</code>, sweep from zero to infinity — and recording what appears, and what
+            disappears, along the way.
+          </p>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="story-section" id="section-3" data-index="2">
+          <p class="section-kicker">03</p>
+          <h2>Building the Simplicial Complex</h2>
+          <p>
+            Balls and overlaps are intuitive, but to compute anything we need combinatorial structure. Enter
+            the <strong>simplicial complex</strong>: a scaffold built from vertices
+            (<code class="math">0</code>-simplices), edges (<code class="math">1</code>-simplices),
+            triangular faces (<code class="math">2</code>-simplices), and their higher-dimensional analogues.
+          </p>
+          <p>
+            Whenever <code class="math">k+1</code> points are mutually within <code class="math">ε</code> of
+            one another, we fill in the <code class="math">k</code>-simplex that spans them. This is the
+            <strong>Vietoris–Rips complex</strong> — a purely combinatorial object built directly from
+            pairwise distances, with no coordinates required.
+          </p>
+          <p>
+            The result is a discrete, computable approximation of the continuous shape the data was sampled
+            from — a mesh assembled entirely out of proximity.
+          </p>
+        </section>
+
+        <!-- Section 4 -->
+        <section class="story-section" id="section-4" data-index="3">
+          <p class="section-kicker">04</p>
+          <h2>Counting the Holes</h2>
+          <p>
+            Once we have a simplicial complex, we can count its holes — and topology gives each dimension of
+            hole a name: the <strong>Betti numbers</strong>.
+          </p>
+          <ul class="betti-list">
+            <li><code class="math">β₀</code> — the number of connected components.</li>
+            <li><code class="math">β₁</code> — the number of independent loops, or one-dimensional holes.</li>
+            <li><code class="math">β₂</code> — the number of enclosed voids, or two-dimensional cavities.</li>
+          </ul>
+          <p>
+            A torus — the point cloud animating beside this text — has <code class="math">β₀ = 1</code>
+            (it's one connected piece), <code class="math">β₁ = 2</code> (a loop through the hole, and a
+            loop around the tube), and <code class="math">β₂ = 1</code> (it encloses a single cavity).
+            These three integers are a compact fingerprint of shape.
+          </p>
+        </section>
+
+        <!-- Section 5 -->
+        <section class="story-section" id="section-5" data-index="4">
+          <p class="section-kicker">05</p>
+          <h2>The Bridge to Rigorous Algebra</h2>
+          <p>
+            Betti numbers feel geometric, but they fall out of pure algebra. Simplices of each dimension form
+            a chain group, connected by a <strong>boundary operator</strong>
+            <code class="math">∂ₖ</code> that maps each <code class="math">k</code>-simplex to the signed
+            sum of its faces.
+          </p>
+          <p>
+            Cycles are chains with no boundary — the kernel <code class="math">Zₖ = ker ∂ₖ</code>. Boundaries
+            are cycles that already bound something — the image <code class="math">Bₖ = im ∂ₖ₊₁</code>. A
+            hole, precisely, is a cycle that is <em>not</em> a boundary:
+          </p>
+          <p class="equation">
+            <code class="math">H<sub>k</sub> = Z<sub>k</sub> / B<sub>k</sub></code>
+          </p>
+          <p>
+            The <code class="math">k</code>-th <strong>homology group</strong>. Its rank is exactly
+            <code class="math">βₖ</code>. Persistent homology tracks how these groups evolve as
+            <code class="math">ε</code> grows — which holes are born, which die, and which persist long
+            enough to be signal rather than noise.
+          </p>
+
+          <div class="cta-wrap">
+            <a class="cta-button" href="https://santimontouliu.github.io/santi-tutoring" target="_blank" rel="noopener noreferrer">
+              Explore the full Algebraic Topology course
+              <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+                <path d="M3 8h9.5M9 4l4.5 4L9 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
+        </section>
+
+        <footer class="page-footer">
+          <p>Built with vanilla JS &amp; Three.js.</p>
+        </footer>
+
+      </article>
+    </div>
+
+  </main>
+
+  <!-- Three.js via CDN (import map for ES module usage) -->
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
+      }
+    }
+  </script>
+  <script type="module" src="main.js"></script>
+</body>
+</html>
