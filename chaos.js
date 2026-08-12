@@ -48,8 +48,12 @@ resizeCanvas();
 
 // A mapper turns local plane coordinates into canvas pixels, centered at
 // (originX, originY) with `extent` local units filling the shorter side.
-function mapper(extent, originX = cx, originY = cy) {
-  const s = (Math.min(w, h) * 0.46) / extent;
+// `widthBudget` caps how much horizontal room the mapper is allowed to use
+// (default: the full canvas) — pass a fraction of `w` when several panels
+// share the canvas side by side, so their content can't bleed into a
+// neighboring panel.
+function mapper(extent, originX = cx, originY = cy, widthBudget = w) {
+  const s = (Math.min(widthBudget, h) * 0.46) / extent;
   return (p) => ({ x: originX + p.x * s, y: originY - p.y * s });
 }
 
@@ -149,10 +153,11 @@ initTheme(readPalette);
 
 function drawStability(progress, t) {
   const panelExtent = 2.3;
-  const leftX = cx - w * 0.24;
-  const rightX = cx + w * 0.24;
-  const mapL = mapper(panelExtent, leftX, cy);
-  const mapR = mapper(panelExtent, rightX, cy);
+  const panelWidthBudget = w * 0.42; // keeps each panel's content off its neighbor
+  const leftX = cx - w * 0.26;
+  const rightX = cx + w * 0.26;
+  const mapL = mapper(panelExtent, leftX, cy, panelWidthBudget);
+  const mapR = mapper(panelExtent, rightX, cy, panelWidthBudget);
 
   // Left panel: center -> spiral. decay grows from 0 (closed loops) with
   // scroll progress, so the instability becomes visible as you read.
@@ -170,22 +175,27 @@ function drawStability(progress, t) {
   dot({ x: 0, y: 0 }, mapL, 3, palette.accent2, 0.9);
 
   // Right panel: saddle -> saddle. Eigenvalues change magnitude but never
-  // sign, so the qualitative picture never changes.
+  // sign, so the qualitative picture never changes. Offsets spread out
+  // geometrically to nearly the panel's edge, so the hyperbola family
+  // fills the panel the way the left panel's rings do, instead of
+  // bunching up near the axes.
   const l1 = 1 + progress * 0.4;
   const l2 = -1 - progress * 0.4;
   const flow = (x0, y0, tt) => diagonalFlow(l1, l2, x0, y0, tt);
+  const offsets = [0.12, 0.26, 0.45, 0.7, 1.0, 1.35, 1.75];
   const seeds = [];
-  for (let i = -6; i <= 6; i++) {
-    if (i === 0) continue;
-    seeds.push([0.02 * Math.sign(i), i * 0.18]);
-    seeds.push([i * 0.18, 0.02 * Math.sign(i)]);
+  for (const off of offsets) {
+    for (const sign of [-1, 1]) {
+      seeds.push([0.015 * sign, off * sign]);
+      seeds.push([off * sign, 0.015 * sign]);
+    }
   }
   for (const [x0, y0] of seeds) {
     const fwd = streamline(flow, x0, y0, 0, 3, 40, panelExtent * 0.95);
     const bwd = streamline(flow, x0, y0, 0, -3, 40, panelExtent * 0.95);
-    strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 1.1, 0.5);
+    strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 1.7, 0.7);
   }
-  dot({ x: 0, y: 0 }, mapR, 3, palette.accent2, 0.9);
+  dot({ x: 0, y: 0 }, mapR, 3.5, palette.accent2, 0.95);
 
   label("center → spiral", leftX, cy + h * 0.36, palette.text, 0.8);
   label("saddle → saddle", rightX, cy + h * 0.36, palette.text, 0.8);

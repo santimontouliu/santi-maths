@@ -148,6 +148,25 @@ code.math {
 }
 
 /* ==========================================================================
+   Top scrim — blurs scrolling text as it passes under the fixed nav and
+   theme toggle, so their labels never collide with page content.
+   ========================================================================== */
+
+.top-scrim {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 110px;
+  z-index: 90; /* below .site-nav / #theme-toggle (100), above scrolled content */
+  pointer-events: none;
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
+  mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 35%, transparent 100%);
+}
+
+/* ==========================================================================
    Theme toggle
    ========================================================================== */
 
