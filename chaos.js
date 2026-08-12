@@ -99,6 +99,40 @@ function dot(p, map, radius, color, opacity = 1) {
   ctx.globalAlpha = 1;
 }
 
+// Runs drawFn with drawing clipped to a circle — a uniform, clean crop for
+// a panel's content, instead of every curve individually deciding where to
+// stop (which produces a jagged, inconsistent-looking edge).
+function clipCircle(centerX, centerY, radiusPx, drawFn) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(centerX, centerY, radiusPx, 0, Math.PI * 2);
+  ctx.clip();
+  drawFn();
+  ctx.restore();
+}
+
+// A dot with a soft halo, for particles that need to read clearly as
+// moving sparks against thin static line art.
+function glowDot(p, map, radius, color, opacity = 1) {
+  const c = map(p);
+  ctx.globalAlpha = opacity * 0.3;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, radius * 2.6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = opacity;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+// Fade envelope for a particle looping through a cycle of length 1: ramps
+// in, holds, ramps out, so it never just pops in/out of existence.
+function loopFade(phase, sharpness = 5) {
+  return Math.min(1, phase * sharpness) * Math.min(1, (1 - phase) * sharpness);
+}
+
 function label(text, x, y, color, opacity = 1, size = 11) {
   ctx.font = `${size}px "JetBrains Mono", monospace`;
   ctx.fillStyle = color;
@@ -156,53 +190,100 @@ function drawStability(progress, t) {
   // The saddle's four arms read as sparser than the center's rings at the
   // same scale, so its panel is zoomed in further to make it equally
   // prominent (see the offsets below, sized to match this tighter extent).
-  const saddleExtent = 1.5;
+  const saddleExtent = 1.35;
   const panelWidthBudget = w * 0.42; // keeps each panel's content off its neighbor
   const leftX = cx - w * 0.26;
   const rightX = cx + w * 0.26;
   const mapL = mapper(panelExtent, leftX, cy, panelWidthBudget);
   const mapR = mapper(saddleExtent, rightX, cy, panelWidthBudget);
+  // Both mappers scale their own extent to this same pixel radius, so one
+  // clip radius crops either panel cleanly, instead of every curve
+  // individually deciding (at a different point) where to stop.
+  const panelRadiusPx = Math.min(panelWidthBudget, h) * 0.46;
 
   // Left panel: center -> spiral. decay grows from 0 (closed loops) with
   // scroll progress, so the instability becomes visible as you read.
   const decay = progress * 0.35;
   const omega = 1.1;
-  for (let i = 0; i < 8; i++) {
-    const r0 = 0.35 + i * 0.22;
-    const pts = [];
-    for (let k = 0; k <= 160; k++) {
-      const tt = (k / 160) * 7;
-      pts.push(spiralFlow(decay, omega, r0, 0, tt));
+  const spinPeriod = (2 * Math.PI) / omega;
+  clipCircle(leftX, cy, panelRadiusPx, () => {
+    for (let i = 0; i < 8; i++) {
+      const r0 = 0.35 + i * 0.22;
+      // A fixed t-range made every ring reach the boundary at wildly
+      // different points along its own curve — small r0 rings barely grow
+      // before running out of samples (undershooting, ending mid-air),
+      // while large r0 rings blow past the boundary almost immediately
+      // (overshooting, clipped to a stub). Solving r0*e^(decay*t)=panelExtent
+      // for t gives each ring exactly enough time to reach the edge and
+      // stop there cleanly, so every arm is a fully-formed curve that
+      // actually touches the boundary.
+      const tMax = decay > 0.001
+        ? Math.min(14, Math.log(panelExtent / r0) / decay)
+        : spinPeriod;
+      const pts = [];
+      for (let k = 0; k <= 160; k++) {
+        pts.push(spiralFlow(decay, omega, r0, 0, (k / 160) * tMax));
+      }
+      strokePath(pts, mapL, palette.accent, 1.3, 0.55);
     }
-    strokePath(pts, mapL, palette.accent, 1.3, 0.55);
-  }
-  dot({ x: 0, y: 0 }, mapL, 3, palette.accent2, 0.9);
+    dot({ x: 0, y: 0 }, mapL, 3, palette.accent2, 0.9);
+
+    // Particles literally following the flow in real time (not tied to
+    // scroll) — spiralFlow evaluated at a looping local clock, so each one
+    // orbits (and, once decay > 0, spirals outward) continuously.
+    for (let i = 0; i < 4; i++) {
+      const r0 = 0.55 + i * 0.42;
+      const tLocal = (t * 0.00028 + i * (spinPeriod / 4)) % spinPeriod;
+      const phase = tLocal / spinPeriod;
+      glowDot(spiralFlow(decay, omega, r0, 0, tLocal), mapL, 3.4, palette.accent2, 0.9 * loopFade(phase));
+    }
+  });
 
   // Right panel: saddle -> saddle. Eigenvalues change magnitude but never
-  // sign, so the qualitative picture never changes. Offsets spread out
-  // geometrically to nearly the panel's edge, so the hyperbola family
-  // fills the panel the way the left panel's rings do, instead of
-  // bunching up near the axes.
+  // sign, so the qualitative picture never changes.
   const l1 = 1 + progress * 0.4;
   const l2 = -1 - progress * 0.4;
   const flow = (x0, y0, tt) => diagonalFlow(l1, l2, x0, y0, tt);
-  const offsets = [0.08, 0.18, 0.32, 0.5, 0.72, 1.0, 1.3];
-  const seeds = [];
-  for (const off of offsets) {
-    for (const sign of [-1, 1]) {
-      seeds.push([0.01 * sign, off * sign]);
-      seeds.push([off * sign, 0.01 * sign]);
-    }
-  }
-  for (const [x0, y0] of seeds) {
-    const fwd = streamline(flow, x0, y0, 0, 3, 40, saddleExtent * 0.95);
-    const bwd = streamline(flow, x0, y0, 0, -3, 40, saddleExtent * 0.95);
-    strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 2, 0.78);
-  }
-  dot({ x: 0, y: 0 }, mapR, 3.5, palette.accent2, 0.95);
 
-  label("center → spiral", leftX, cy + h * 0.36, palette.text, 0.8);
-  label("saddle → saddle", rightX, cy + h * 0.36, palette.text, 0.8);
+  clipCircle(rightX, cy, panelRadiusPx, () => {
+    // Particles genuinely flowing along the saddle: two start near the
+    // origin and ride the unstable direction outward, two start near the
+    // panel edge and ride the stable direction inward — both directions
+    // of the actual dynamics, moving continuously regardless of scroll.
+    const T = saddleExtent * 1.6;
+    const edge = saddleExtent * 0.92;
+    const particleDefs = [
+      { x0: 0.04, y0: 0 }, { x0: -0.04, y0: 0 },
+      { x0: 0, y0: edge }, { x0: 0, y0: -edge },
+    ];
+    particleDefs.forEach((seed, i) => {
+      const tLocal = (t * 0.00042 + i * (T / 4)) % T;
+      const phase = tLocal / T;
+      const p = flow(seed.x0, seed.y0, tLocal);
+      glowDot(p, mapR, 3.6, palette.accent2, 0.95 * loopFade(phase));
+    });
+
+    // Seeds sit ON THE DIAGONAL (comparable x0, y0), not hugging an axis —
+    // a seed like (0.01, off) stays glued to the y-axis for almost its
+    // entire length, with the actual hyperbola curvature squeezed into a
+    // sliver near the origin, which read as dense straight spokes rather
+    // than a family of curves. Starting at (d, d) puts the seed at the
+    // curve's own vertex, so it bows visibly across its whole length.
+    const diagonals = [0.12, 0.25, 0.42, 0.62, 0.85];
+    const seeds = [];
+    for (const d of diagonals) {
+      seeds.push([d, d], [d, -d], [-d, d], [-d, -d]);
+    }
+    for (const [x0, y0] of seeds) {
+      const fwd = streamline(flow, x0, y0, 0, 3, 40, saddleExtent * 4);
+      const bwd = streamline(flow, x0, y0, 0, -3, 40, saddleExtent * 4);
+      strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 1.6, 0.6);
+    }
+    dot({ x: 0, y: 0 }, mapR, 3.5, palette.accent2, 0.95);
+  });
+
+  label("center → spiral (unstable)", leftX, cy + h * 0.36, palette.text, 0.8);
+  label("saddle stays a saddle (stable)", rightX, cy + h * 0.36, palette.text, 0.8);
 
   const divider = mapper(1);
   ctx.beginPath();
