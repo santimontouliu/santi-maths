@@ -153,11 +153,15 @@ initTheme(readPalette);
 
 function drawStability(progress, t) {
   const panelExtent = 2.3;
+  // The saddle's four arms read as sparser than the center's rings at the
+  // same scale, so its panel is zoomed in further to make it equally
+  // prominent (see the offsets below, sized to match this tighter extent).
+  const saddleExtent = 1.5;
   const panelWidthBudget = w * 0.42; // keeps each panel's content off its neighbor
   const leftX = cx - w * 0.26;
   const rightX = cx + w * 0.26;
   const mapL = mapper(panelExtent, leftX, cy, panelWidthBudget);
-  const mapR = mapper(panelExtent, rightX, cy, panelWidthBudget);
+  const mapR = mapper(saddleExtent, rightX, cy, panelWidthBudget);
 
   // Left panel: center -> spiral. decay grows from 0 (closed loops) with
   // scroll progress, so the instability becomes visible as you read.
@@ -182,18 +186,18 @@ function drawStability(progress, t) {
   const l1 = 1 + progress * 0.4;
   const l2 = -1 - progress * 0.4;
   const flow = (x0, y0, tt) => diagonalFlow(l1, l2, x0, y0, tt);
-  const offsets = [0.12, 0.26, 0.45, 0.7, 1.0, 1.35, 1.75];
+  const offsets = [0.08, 0.18, 0.32, 0.5, 0.72, 1.0, 1.3];
   const seeds = [];
   for (const off of offsets) {
     for (const sign of [-1, 1]) {
-      seeds.push([0.015 * sign, off * sign]);
-      seeds.push([off * sign, 0.015 * sign]);
+      seeds.push([0.01 * sign, off * sign]);
+      seeds.push([off * sign, 0.01 * sign]);
     }
   }
   for (const [x0, y0] of seeds) {
-    const fwd = streamline(flow, x0, y0, 0, 3, 40, panelExtent * 0.95);
-    const bwd = streamline(flow, x0, y0, 0, -3, 40, panelExtent * 0.95);
-    strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 1.7, 0.7);
+    const fwd = streamline(flow, x0, y0, 0, 3, 40, saddleExtent * 0.95);
+    const bwd = streamline(flow, x0, y0, 0, -3, 40, saddleExtent * 0.95);
+    strokePath(bwd.reverse().concat(fwd), mapR, palette.accent, 2, 0.78);
   }
   dot({ x: 0, y: 0 }, mapR, 3.5, palette.accent2, 0.95);
 

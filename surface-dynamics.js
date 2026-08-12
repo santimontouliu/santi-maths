@@ -95,6 +95,48 @@ function fillDot(p, radius, color, opacity = 1) {
   ctx.globalAlpha = 1;
 }
 
+// A dot with a soft halo — used for the flowing particles below, so they
+// read clearly as small bright sparks moving against thin line art rather
+// than blending into it.
+function fillGlowDot(p, radius, color, opacity = 1) {
+  const c = toCanvas(p);
+  ctx.globalAlpha = opacity * 0.3;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, radius * 2.6, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+  ctx.globalAlpha = opacity;
+  ctx.beginPath();
+  ctx.arc(c.x, c.y, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+}
+
+function rotatePoint(p, angle) {
+  const c = Math.cos(angle), s = Math.sin(angle);
+  return { x: p.x * c - p.y * s, y: p.x * s + p.y * c };
+}
+
+// Position at fraction `phase` (wraps mod 1) along a sampled path — the
+// shared trick behind every "flowing particle" below. A static stroke
+// can't show that a geodesic is something you move along; a dot crawling
+// down it, fading in and out at each lap, can.
+function pointAlongPath(points, phase) {
+  const t = ((phase % 1) + 1) % 1;
+  const idx = t * (points.length - 1);
+  const i0 = Math.floor(idx);
+  const i1 = Math.min(points.length - 1, i0 + 1);
+  const frac = idx - i0;
+  const a = points[i0], b = points[i1];
+  return { x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac };
+}
+
+// Fade envelope for a looping particle: ramps in, holds, ramps out near
+// the two ends of its lap so it never just pops in/out of existence.
+function edgeFade(phase, sharpness = 5) {
+  return Math.min(1, phase * sharpness) * Math.min(1, (1 - phase) * sharpness);
+}
+
 // ----------------------------------------------------------------------------
 // 2. Theme-aware palette
 // ----------------------------------------------------------------------------
@@ -133,12 +175,21 @@ const GRID_SPOKES = 16;
 const RING_STEP = 0.55; // hyperbolic distance between rings
 
 function drawDistortionGrid(progress, t) {
-  const spin = t * 0.00002;
+  const spin = t * 0.00009;
   for (let i = 0; i < GRID_SPOKES; i++) {
     const angle = (i / GRID_SPOKES) * Math.PI * 2 + spin;
     const p1 = polar(0.999, angle);
     const p2 = polar(0.999, angle + Math.PI);
     strokePath([p1, { x: 0, y: 0 }, p2], palette.grid, 1, 0.22);
+  }
+
+  // Particles crawling outward along every third spoke, looping — a
+  // direct, moving demonstration of "equal steps, growing apart" rather
+  // than a picture the reader has to imagine unfolding over time.
+  for (let i = 0; i < GRID_SPOKES; i += 3) {
+    const angle = (i / GRID_SPOKES) * Math.PI * 2 + spin;
+    const phase = (t * 0.00024 + i * 0.11) % 1;
+    fillGlowDot(polar(phase * 0.97, angle), 3.6, palette.accent2, 0.95 * edgeFade(phase));
   }
 
   const visibleRings = Math.max(2, Math.ceil(2 + progress * (GRID_RINGS_MAX - 2)));
@@ -164,7 +215,7 @@ function drawDistortionGrid(progress, t) {
 // point — every "straight line" through one point in the hyperbolic plane. -
 
 function drawGeodesicPencil(progress, t) {
-  const orbitAngle = t * 0.00018;
+  const orbitAngle = t * 0.00032;
   const p = polar(0.42, orbitAngle);
 
   const rayCount = Math.max(6, Math.round(4 + progress * 14));
@@ -172,6 +223,13 @@ function drawGeodesicPencil(progress, t) {
     const theta = (i / rayCount) * Math.PI;
     const line = geodesicLineThrough(p, theta, 40);
     strokePath(line, palette.accent, 1.2, 0.4);
+
+    // A particle flowing from p out to one end of its geodesic, looping —
+    // "you can move along this line," not just "here is a line."
+    const midIdx = Math.floor(line.length / 2);
+    const phase = (t * 0.00034 + i * 0.17) % 1;
+    const idx = Math.round(midIdx + phase * (line.length - 1 - midIdx));
+    fillGlowDot(line[idx], 3.2, palette.accent2, 0.9 * edgeFade(phase));
   }
 
   drawBoundaryCircle(palette.boundary, 0.7);
@@ -192,18 +250,17 @@ const TILE_EDGES = TILING.map((tile) => {
   return { edges, depth: tile.depth, verts: tile.verts };
 });
 
+const GLUING_CYCLE_MS = 1000; // time spent highlighting each of the 4 pairs
+
 function drawOctagonGluing(progress, t) {
-  const spin = t * 0.00001;
+  const spin = t * 0.00006;
   const maxDepth = progress > 0.7 ? 2 : progress > 0.3 ? 1 : 0;
 
   for (const tile of TILE_EDGES) {
     if (tile.depth > maxDepth) continue;
     const isBase = tile.depth === 0;
     for (let k = 0; k < 8; k++) {
-      const rotated = tile.edges[k].map((pt) => {
-        const c = Math.cos(spin), s = Math.sin(spin);
-        return { x: pt.x * c - pt.y * s, y: pt.x * s + pt.y * c };
-      });
+      const rotated = tile.edges[k].map((pt) => rotatePoint(pt, spin));
       const color = isBase ? palette.qual[k % 4] : palette.grid;
       const opacity = isBase ? 0.9 : 0.28;
       const width = isBase ? 2.2 : 1;
@@ -213,10 +270,20 @@ function drawOctagonGluing(progress, t) {
 
   // All eight vertices of the base octagon become a single point on the
   // surface — mark them to make that collapse visible.
-  const c2 = Math.cos(spin), s2 = Math.sin(spin);
   for (const v of BASE_OCTAGON) {
-    const rv = { x: v.x * c2 - v.y * s2, y: v.x * s2 + v.y * c2 };
-    fillDot(rv, 3.5, palette.accent2, 0.85);
+    fillDot(rotatePoint(v, spin), 3.5, palette.accent2, 0.85);
+  }
+
+  // Cycle through the 4 side-pairings, flashing each identified pair in
+  // turn — motion that directly demonstrates "these two edges are the
+  // same edge," rather than leaving the reader to match colors by eye.
+  const cycleIndex = Math.floor(t / GLUING_CYCLE_MS) % 4;
+  const cycleProgress = (t % GLUING_CYCLE_MS) / GLUING_CYCLE_MS;
+  const pulse = Math.sin(cycleProgress * Math.PI);
+  const baseTile = TILE_EDGES[0];
+  for (const k of [cycleIndex, cycleIndex + 4]) {
+    const rotated = baseTile.edges[k].map((pt) => rotatePoint(pt, spin));
+    strokePath(rotated, palette.accent2, 2 + pulse * 2.5, 0.45 + pulse * 0.55);
   }
 
   drawBoundaryCircle(palette.boundary, 0.7);
@@ -225,14 +292,16 @@ function drawOctagonGluing(progress, t) {
 // -- Visual 4: two nearly-parallel geodesics, diverging across the tiling. -
 
 function drawDivergingGeodesics(progress, t) {
+  const spin = t * 0.00004;
   for (const tile of TILE_EDGES) {
     for (let k = 0; k < 8; k++) {
-      strokePath(tile.edges[k], palette.grid, 1, tile.depth === 0 ? 0.3 : 0.14);
+      const rotated = tile.edges[k].map((pt) => rotatePoint(pt, spin));
+      strokePath(rotated, palette.grid, 1, tile.depth === 0 ? 0.3 : 0.14);
     }
   }
   drawBoundaryCircle(palette.boundary, 0.6);
 
-  const drift = t * 0.00003;
+  const drift = t * 0.00005;
   const baseAngle = 0.5 + Math.sin(drift) * 0.3;
   const splitAngle = 0.012 + progress * 0.01; // starts a fraction of a degree apart
 
@@ -241,6 +310,17 @@ function drawDivergingGeodesics(progress, t) {
 
   strokePath(rayA, palette.accent, 1.8, 0.9);
   strokePath(rayB, palette.accent2, 1.8, 0.9);
+
+  // Particles flowing outward along each ray — the actual geodesic FLOW
+  // this section is named for, not just two static diverging lines.
+  for (const [line, color] of [[rayA, palette.accent], [rayB, palette.accent2]]) {
+    const midIdx = Math.floor(line.length / 2);
+    for (let i = 0; i < 3; i++) {
+      const phase = (t * 0.00028 + i / 3) % 1;
+      const idx = Math.round(midIdx + phase * (line.length - 1 - midIdx));
+      fillGlowDot(line[idx], 3.6, color, 0.95 * edgeFade(phase));
+    }
+  }
 }
 
 // ----------------------------------------------------------------------------

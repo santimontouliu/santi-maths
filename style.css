@@ -260,6 +260,41 @@ code.math {
   transition: var(--transition-theme);
 }
 
+/* Betti number readout — a small stacked panel, bottom-right of the scene,
+   mirroring .scene-caption's chip language. Rows are revealed one at a
+   time by main.js setting their inline opacity; the transition here just
+   makes that reveal (and every theme swap) smooth. */
+.betti-counter {
+  position: absolute;
+  right: 32px;
+  bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  transition: var(--transition-theme);
+}
+
+.betti-row {
+  display: flex;
+  align-items: baseline;
+  gap: 0.8em;
+  opacity: 0;
+  transition: opacity 0.6s ease;
+}
+
+.betti-symbol { color: var(--text-tertiary); }
+.betti-value { color: var(--accent); font-weight: 500; min-width: 1ch; text-align: right; }
+
+@media (max-width: 900px) {
+  .betti-counter { right: 20px; bottom: 20px; padding: 8px 12px; font-size: 12px; }
+}
+
 .text-column {
   order: 1;
   padding: 0 clamp(24px, 5vw, 64px);
