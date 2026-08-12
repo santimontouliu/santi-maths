@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Structural Stability, from Fixed Points to Chaos</title>
+  <meta name="description" content="A scrollytelling introduction to structural stability and hyperbolicity: hyperbolic fixed points, the Smale horseshoe, and the solenoid attractor." />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap" rel="stylesheet" />
+
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <nav class="site-nav" aria-label="Entries">
+    <a href="index.html">Topological Data Analysis</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="surface-dynamics.html">Surface Dynamics</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="chaos.html" class="is-current">Structural Stability</a>
+  </nav>
+
+  <button id="theme-toggle" aria-label="Toggle light and dark mode" title="Toggle theme">
+    <svg id="icon-sun" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2"></circle>
+      <g stroke-linecap="round">
+        <line x1="12" y1="1.5" x2="12" y2="4"></line>
+        <line x1="12" y1="20" x2="12" y2="22.5"></line>
+        <line x1="1.5" y1="12" x2="4" y2="12"></line>
+        <line x1="20" y1="12" x2="22.5" y2="12"></line>
+        <line x1="4.6" y1="4.6" x2="6.3" y2="6.3"></line>
+        <line x1="17.7" y1="17.7" x2="19.4" y2="19.4"></line>
+        <line x1="4.6" y1="19.4" x2="6.3" y2="17.7"></line>
+        <line x1="17.7" y1="6.3" x2="19.4" y2="4.6"></line>
+      </g>
+    </svg>
+    <svg id="icon-moon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+      <path d="M20.5 14.5A8.5 8.5 0 1 1 9.5 3.5a7 7 0 0 0 11 11z"></path>
+    </svg>
+  </button>
+
+  <main class="layout">
+
+    <div class="scene-column">
+      <div class="scene-sticky">
+        <canvas id="scene-canvas"></canvas>
+        <div class="scene-caption">
+          <span id="scene-stage-label">01 — Stability</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-column">
+      <article>
+
+        <header class="hero">
+          <p class="eyebrow">Differentiable Dynamical Systems</p>
+          <h1>Structural Stability,<br>from Fixed Points to Chaos</h1>
+          <p class="hero-sub">
+            Following Lan Wen's <em>Differentiable Dynamical Systems</em> — how the search for a robust
+            notion of stability leads, almost against expectation, straight to chaos.
+          </p>
+        </header>
+
+        <!-- Section 1 -->
+        <section class="story-section" id="ds-section-1" data-index="0">
+          <p class="section-kicker">01</p>
+          <h2>When Is a System Stable?</h2>
+          <p>
+            Two dynamical systems are <strong>topologically conjugate</strong> if a homeomorphism
+            <code class="math">h</code> translates one into the other: <code class="math">h ∘ f = g ∘ h</code>.
+            Conjugate systems have identical orbit structure — the same picture, just relabeled.
+          </p>
+          <p>
+            A system <code class="math">f</code> is <strong>structurally stable</strong> if every nearby
+            system is conjugate to it — small perturbations can't change the qualitative picture, only
+            deform it. It sounds like a mild request. It turns out to be extraordinarily restrictive.
+          </p>
+          <p>
+            Watch a <em>center</em> — a fixed point surrounded by closed orbits — take an arbitrarily small
+            push: the closed loops break into a spiral. The orbit structure genuinely changes, so a center is
+            never structurally stable. A <em>saddle</em>, pushed the same way, is still visibly a saddle
+            afterward. That difference is the whole subject in miniature.
+          </p>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="story-section" id="ds-section-2" data-index="1">
+          <p class="section-kicker">02</p>
+          <h2>Hyperbolic Fixed Points</h2>
+          <p>
+            The saddle survives because it's <strong>hyperbolic</strong>: the linearization
+            <code class="math">Df</code> at the fixed point has no eigenvalue on the unit circle. That single
+            condition splits the tangent space into a stable subspace <code class="math">Eˢ</code>, where
+            nearby points contract toward the fixed point, and an unstable subspace
+            <code class="math">Eᵘ</code>, where they expand away from it.
+          </p>
+          <p>
+            In two dimensions this gives exactly three pictures: both directions contracting is a
+            <em>sink</em>, both expanding is a <em>source</em>, and one of each is a <em>saddle</em>. The
+            portrait beside this text morphs continuously through all three as you scroll.
+          </p>
+          <p>
+            The <strong>Hartman–Grobman theorem</strong> says this linear picture isn't just a local
+            approximation — near a hyperbolic fixed point, the true nonlinear system is topologically
+            <em>identical</em> to its linearization. The simple picture is the whole truth, locally.
+          </p>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="story-section" id="ds-section-3" data-index="2">
+          <p class="section-kicker">03</p>
+          <h2>The Smale Horseshoe</h2>
+          <p>
+            Hyperbolicity at a single point is tame. Smale's discovery was that it scales up to something
+            wild. Take a square <code class="math">Q</code>, stretch it long and thin, fold it into a
+            hairpin, and lay it back down across <code class="math">Q</code>. The image
+            <code class="math">f(Q)</code> now crosses <code class="math">Q</code> in two thin vertical
+            strips — everything else in <code class="math">Q</code> gets mapped clean outside it and never
+            returns.
+          </p>
+          <p>
+            Points that survive <em>every</em> iterate, forward and backward forever, are exactly the points
+            that keep landing back in one of those two strips — and their strips, and their strips' strips.
+            The survivors form a <strong>Cantor set</strong>: the nested skeleton growing on the square as
+            you scroll.
+          </p>
+          <p>
+            Code each surviving point by which of the two strips it occupies at every iterate, and the
+            horseshoe becomes exactly the <strong>shift map</strong> on bi-infinite sequences of
+            <code class="math">0</code>s and <code class="math">1</code>s. That's the source of everything
+            that follows: infinitely many periodic orbits, none of them removable by perturbation, and
+            sensitive dependence on initial conditions — chaos, sitting inside a structurally
+            <em>stable</em> system.
+          </p>
+        </section>
+
+        <!-- Section 4 -->
+        <section class="story-section" id="ds-section-4" data-index="3">
+          <p class="section-kicker">04</p>
+          <h2>The Solenoid Attractor</h2>
+          <p>
+            The horseshoe's Cantor set sits inside a bigger space — points can still wander off and never
+            come back. The <strong>solenoid</strong> uses the same stretch-and-fold mechanism to build a set
+            that actually <em>attracts</em>.
+          </p>
+          <p>
+            Take a solid torus and map it inside itself by winding it around the core circle <em>twice</em>
+            while shrinking its cross-section and re-centering it. Iterate: the solid torus nests inside
+            itself forever, thinner and more tightly wound each generation, doubling how many times it
+            winds around at every step.
+          </p>
+          <p>
+            The intersection <code class="math">⋂ₙ fⁿ(V)</code> — the limit of that infinite nesting — is
+            the solenoid: locally an interval crossed with a Cantor set, wound densely around the core.
+            Nearby points really do get pulled onto it. Same mechanism as the horseshoe, same infinite
+            complexity, but now it's what everything else in the solid torus is drawn toward.
+          </p>
+        </section>
+
+        <footer class="page-footer">
+          <p>Built with vanilla JS — closed-form flows, an affine horseshoe skeleton, and a hand-projected solenoid, no rendering library.</p>
+          <p class="copyright">© <span class="copyright-year"></span> Santiago Montouliu Villegas.</p>
+        </footer>
+
+      </article>
+    </div>
+
+  </main>
+
+  <script>
+    document.querySelectorAll(".copyright-year").forEach((el) => { el.textContent = new Date().getFullYear(); });
+  </script>
+  <script type="module" src="chaos.js"></script>
+</body>
+</html>

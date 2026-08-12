@@ -21,6 +21,8 @@
     <a href="index.html" class="is-current">Topological Data Analysis</a>
     <span class="site-nav-sep" aria-hidden="true">·</span>
     <a href="surface-dynamics.html">Surface Dynamics</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="chaos.html">Structural Stability</a>
   </nav>
 
   <!-- Theme toggle: fixed top-right, cycles light/dark. Defaults to OS preference via CSS + main.js check. -->
@@ -188,6 +190,7 @@
 
         <footer class="page-footer">
           <p>Built with vanilla JS &amp; Three.js.</p>
+          <p class="copyright">© <span class="copyright-year"></span> Santiago Montouliu Villegas.</p>
         </footer>
 
       </article>
@@ -202,6 +205,9 @@
         "three": "https://unpkg.com/three@0.160.0/build/three.module.js"
       }
     }
+  </script>
+  <script>
+    document.querySelectorAll(".copyright-year").forEach((el) => { el.textContent = new Date().getFullYear(); });
   </script>
   <script type="module" src="main.js"></script>
 </body>

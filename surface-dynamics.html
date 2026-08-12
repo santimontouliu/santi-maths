@@ -18,6 +18,8 @@
     <a href="index.html">Topological Data Analysis</a>
     <span class="site-nav-sep" aria-hidden="true">·</span>
     <a href="surface-dynamics.html" class="is-current">Surface Dynamics</a>
+    <span class="site-nav-sep" aria-hidden="true">·</span>
+    <a href="chaos.html">Structural Stability</a>
   </nav>
 
   <button id="theme-toggle" aria-label="Toggle light and dark mode" title="Toggle theme">
@@ -163,6 +165,7 @@
 
         <footer class="page-footer">
           <p>Built with vanilla JS &amp; a hand-rolled Poincaré disk toolkit — no rendering library.</p>
+          <p class="copyright">© <span class="copyright-year"></span> Santiago Montouliu Villegas.</p>
         </footer>
 
       </article>
@@ -170,6 +173,9 @@
 
   </main>
 
+  <script>
+    document.querySelectorAll(".copyright-year").forEach((el) => { el.textContent = new Date().getFullYear(); });
+  </script>
   <script type="module" src="surface-dynamics.js"></script>
 </body>
 </html>

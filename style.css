@@ -387,6 +387,11 @@ article {
   color: var(--text-tertiary);
 }
 
+.page-footer .copyright {
+  margin-top: 0.4em;
+  margin-bottom: 0;
+}
+
 /* ==========================================================================
    Responsive — mobile: canvas fixed at top, text scrolls over it
    ========================================================================== */
