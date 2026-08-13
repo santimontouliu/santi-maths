@@ -11,7 +11,6 @@ import { initTheme, cssVar } from "./theme.js";
 import { createSectionTracker, sectionScrollProgress } from "./scroll.js";
 import {
   diagonalFlow,
-  spiralFlow,
   streamline,
   horseshoeOutline,
   cantorIntervals,
@@ -70,31 +69,6 @@ function strokePath(points, map, color, lineWidth, opacity = 1) {
   ctx.globalAlpha = opacity;
   ctx.lineWidth = lineWidth;
   ctx.stroke();
-  ctx.globalAlpha = 1;
-}
-
-// Like strokePath, but the last (1 - fadeStartFrac) of the curve fades to
-// transparent instead of ending in a hard cap. However carefully a curve's
-// length is chosen, *something* will still end up stopping mid-air or
-// slightly short of/past a boundary in some cases — fading the tail means
-// that end dissolves naturally instead of reading as a broken-off loose
-// end or a seam.
-function strokePathFading(points, map, color, lineWidth, opacity, fadeStartFrac = 0.8) {
-  const n = points.length;
-  if (n < 2) return;
-  const fadeStart = Math.floor(n * fadeStartFrac);
-  ctx.strokeStyle = color;
-  ctx.lineWidth = lineWidth;
-  for (let i = 1; i < n; i++) {
-    const a = map(points[i - 1]);
-    const b = map(points[i]);
-    const f = i <= fadeStart ? 1 : 1 - (i - fadeStart) / (n - 1 - fadeStart);
-    ctx.globalAlpha = opacity * f;
-    ctx.beginPath();
-    ctx.moveTo(a.x, a.y);
-    ctx.lineTo(b.x, b.y);
-    ctx.stroke();
-  }
   ctx.globalAlpha = 1;
 }
 
@@ -207,62 +181,135 @@ initTheme(readPalette);
 // 3. Four visuals, one per section
 // ----------------------------------------------------------------------------
 
-// -- Visual 1: structural stability — a center perturbing into a spiral
-// (unstable) beside a saddle that stays a saddle (stable). ------------------
+// -- Visual 1: a fragile homoclinic loop (unstable) beside a saddle that
+// stays a saddle (stable). -----------------------------------------------
+//
+// The loop is a real example, not a decorative curve: dx/dt = y,
+// dy/dt = x - x^2 (Strogatz's standard saddle-connection system) has
+// Hamiltonian H(x,y) = y^2/2 - x^2/2 + x^3/3, a saddle at (0,0), and a
+// center at (1,0). The level set H=0 through the saddle is a closed loop
+// enclosing the center, for x in [0, 1.5] — the trajectory leaves the
+// saddle and arrives back at itself.
+
+const LOOP_SHIFT = 0.75; // recenters the loop (x in [0, 1.5]) around x=0
+
+function loopHalfY(x) {
+  return Math.sqrt(Math.max(0, x * x - (2 / 3) * x * x * x));
+}
+
+// The outer loop itself (H=0), sampled explicitly since it passes exactly
+// through the saddle at x=0, where the generic level-set walk below
+// wouldn't stay put.
+function homoclinicLoopPoints(steps = 140) {
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const x = (1.5 * i) / steps;
+    pts.push({ x: x - LOOP_SHIFT, y: loopHalfY(x) });
+  }
+  for (let i = steps; i >= 0; i--) {
+    const x = (1.5 * i) / steps;
+    pts.push({ x: x - LOOP_SHIFT, y: -loopHalfY(x) });
+  }
+  return pts;
+}
+
+// An inner closed orbit at Hamiltonian level H=c, -1/6 < c < 0 (the center
+// itself is at H=-1/6; the outer loop is H=0) — found by walking outward
+// from x=1 until the level set closes on itself.
+function innerOrbitPoints(c, steps = 90) {
+  const f = (x) => 2 * c + x * x - (2 / 3) * x * x * x;
+  let lo = 1, hi = 1;
+  const step = 0.001;
+  while (f(lo - step) >= 0 && lo > -1) lo -= step;
+  while (f(hi + step) >= 0 && hi < 2) hi += step;
+  const pts = [];
+  for (let i = 0; i <= steps; i++) {
+    const x = lo + (hi - lo) * (i / steps);
+    pts.push({ x: x - LOOP_SHIFT, y: Math.sqrt(Math.max(0, f(x))) });
+  }
+  for (let i = steps; i >= 0; i--) {
+    const x = lo + (hi - lo) * (i / steps);
+    pts.push({ x: x - LOOP_SHIFT, y: -Math.sqrt(Math.max(0, f(x))) });
+  }
+  return pts;
+}
+
+const HOMOCLINIC_LOOP = homoclinicLoopPoints();
+const INNER_ORBITS = [-0.14, -0.09, -0.05, -0.02].map((c) => innerOrbitPoints(c));
+const SADDLE_P = { x: -LOOP_SHIFT, y: 0 };
+const CENTER_O = { x: 1 - LOOP_SHIFT, y: 0 };
+const POINT_Q = { x: 0.4 - LOOP_SHIFT, y: loopHalfY(0.4) };
+
+// Position on the outer loop at a looping phase in [0,1) — eased to slow
+// down near the saddle (phase 0≡1), the way a real trajectory asymptotic
+// to a fixed point would.
+function homoclinicPosition(phase) {
+  const eased = phase - Math.sin(2 * Math.PI * phase) / (2 * Math.PI);
+  const x = eased < 0.5 ? 3 * eased : 3 * (1 - eased);
+  const y = eased < 0.5 ? loopHalfY(x) : -loopHalfY(x);
+  return { x: x - LOOP_SHIFT, y };
+}
+
+// Position at fraction `phase` (wraps mod 1) along a sampled closed path —
+// used to animate a particle orbiting one of the inner curves.
+function pointAlongPath(points, phase) {
+  const frac = ((phase % 1) + 1) % 1;
+  const idx = frac * (points.length - 1);
+  const i0 = Math.floor(idx);
+  const i1 = Math.min(points.length - 1, i0 + 1);
+  const f = idx - i0;
+  const a = points[i0], b = points[i1];
+  return { x: a.x + (b.x - a.x) * f, y: a.y + (b.y - a.y) * f };
+}
 
 function drawStability(progress, t) {
-  const panelExtent = 2.3;
-  // The saddle's four arms read as sparser than the center's rings at the
+  const loopExtent = 1.05;
+  // The saddle's four arms read as sparser than a filled shape at the
   // same scale, so its panel is zoomed in further to make it equally
   // prominent (see the offsets below, sized to match this tighter extent).
   const saddleExtent = 1.35;
   const panelWidthBudget = w * 0.42; // keeps each panel's content off its neighbor
   const leftX = cx - w * 0.26;
   const rightX = cx + w * 0.26;
-  const mapL = mapper(panelExtent, leftX, cy, panelWidthBudget);
+  const mapL = mapper(loopExtent, leftX, cy, panelWidthBudget);
   const mapR = mapper(saddleExtent, rightX, cy, panelWidthBudget);
   // Both mappers scale their own extent to this same pixel radius, so one
   // clip radius crops either panel cleanly, instead of every curve
   // individually deciding (at a different point) where to stop.
   const panelRadiusPx = Math.min(panelWidthBudget, h) * 0.46;
 
-  // Left panel: center -> spiral. decay grows from 0 (closed loops) with
-  // scroll progress, so the instability becomes visible as you read.
-  const decay = progress * 0.35;
-  const omega = 1.1;
-  const spinPeriod = (2 * Math.PI) / omega;
+  // Left panel: the homoclinic loop. It's an exact fixed curve — scroll
+  // progress only reveals q's label, tying the marker to the paragraph
+  // that introduces it, rather than distorting the geometry itself.
   clipCircle(leftX, cy, panelRadiusPx, () => {
-    for (let i = 0; i < 8; i++) {
-      const r0 = 0.35 + i * 0.22;
-      // Chasing an exact stopping point for every ring (reach the boundary
-      // precisely, or close a loop exactly) turned out to be a losing
-      // game — there's always some combination of r0/decay where a ring
-      // neither reaches the boundary nor closes cleanly within a sane
-      // sample budget, leaving a hard-capped end floating in open space.
-      // So: cap generously, and fade the tail instead of hard-stopping it
-      // (see strokePathFading) — wherever a ring actually ends up
-      // stopping, it dissolves instead of showing a loose end.
-      const tMax = decay > 0 ? Math.min(16, Math.log(panelExtent * 1.4 / r0) / decay) : spinPeriod;
-      const pts = [];
-      for (let k = 0; k <= 160; k++) {
-        pts.push(spiralFlow(decay, omega, r0, 0, (k / 160) * tMax));
-      }
-      if (decay > 0) {
-        strokePathFading(pts, mapL, palette.accent, 1.3, 0.55, 0.78);
-      } else {
-        strokePath(pts, mapL, palette.accent, 1.3, 0.55); // decay=0: a closed circle, no tail to hide
-      }
-    }
-    dot({ x: 0, y: 0 }, mapL, 3, palette.accent2, 0.9);
+    strokePath([...HOMOCLINIC_LOOP, HOMOCLINIC_LOOP[0]], mapL, palette.accent, 1.8, 0.85);
+    INNER_ORBITS.forEach((orbit, i) => {
+      strokePath([...orbit, orbit[0]], mapL, palette.accent, 1, 0.32 - i * 0.03);
+    });
 
-    // Particles literally following the flow in real time (not tied to
-    // scroll) — spiralFlow evaluated at a looping local clock, so each one
-    // orbits (and, once decay > 0, spirals outward) continuously.
-    for (let i = 0; i < 4; i++) {
-      const r0 = 0.55 + i * 0.42;
-      const tLocal = (t * 0.00028 + i * (spinPeriod / 4)) % spinPeriod;
-      const phase = tLocal / spinPeriod;
-      glowDot(spiralFlow(decay, omega, r0, 0, tLocal), mapL, 3.4, palette.accent2, 0.9 * loopFade(phase));
+    dot(SADDLE_P, mapL, 3.5, palette.accent2, 0.95);
+    dot(CENTER_O, mapL, 3, palette.accent2, 0.75);
+    const pPx = mapL(SADDLE_P), oPx = mapL(CENTER_O);
+    label("p", pPx.x, pPx.y - 11, palette.text, 0.85, 12);
+    label("o", oPx.x, oPx.y - 10, palette.text, 0.85, 12);
+
+    const qOpacity = Math.min(1, progress / 0.5);
+    if (qOpacity > 0.01) {
+      dot(POINT_Q, mapL, 2.6, palette.qual[2], 0.9 * qOpacity);
+      const qPx = mapL(POINT_Q);
+      label("q", qPx.x + 12, qPx.y - 4, palette.text, 0.85 * qOpacity, 12);
+    }
+
+    // A particle slowly tracing the loop, real time, easing to a crawl
+    // near the saddle — visibly the same "leaves p, returns to p" story
+    // the text describes, not just a static picture of it.
+    glowDot(homoclinicPosition((t * 0.00006) % 1), mapL, 3.2, palette.accent2, 0.9);
+
+    // A couple of particles orbiting an inner closed curve near o.
+    const orbitPath = INNER_ORBITS[2];
+    for (let i = 0; i < 2; i++) {
+      const phase = (t * 0.00045 + i * 0.5) % 1;
+      glowDot(pointAlongPath(orbitPath, phase), mapL, 2.4, palette.accent2, 0.8);
     }
   });
 
@@ -309,7 +356,7 @@ function drawStability(progress, t) {
     dot({ x: 0, y: 0 }, mapR, 3.5, palette.accent2, 0.95);
   });
 
-  label("center → spiral (unstable)", leftX, cy + h * 0.36, palette.text, 0.8);
+  label("homoclinic loop (fragile)", leftX, cy + h * 0.36, palette.text, 0.8);
   label("saddle stays a saddle (stable)", rightX, cy + h * 0.36, palette.text, 0.8);
 
   const divider = mapper(1);
